@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "web": "node dist/web/server.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "setup-hooks": "node hooks/setup.cjs"
   },
   "private": true,
   "dependencies": {

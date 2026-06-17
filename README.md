@@ -14,16 +14,14 @@ Memories are token-budgeted, so session-start context loads stay small (2,000 to
 
 ### How it teaches Claude Code to use it
 
-Thinker uses the MCP protocol's built-in `instructions` field to tell Claude Code when and how to call its tools. These instructions are injected into every session automatically — no project rule files or manual configuration needed beyond registration.
+Thinker uses two global Claude Code hooks to ensure `memory_context` is called at the start of every session:
 
-The instructions follow a four-phase workflow:
+1. **Bootstrap hook** (`UserPromptSubmit`) — detects Thinker in the project's `.mcp.json` and injects a context message telling Claude to call `memory_context` before doing any work. Fires on the first prompt, before Claude starts thinking.
+2. **Backstop hook** (`PreToolUse` on Edit/Write/NotebookEdit) — hard-blocks file writes if `memory_context` hasn't been called yet. Last line of defense.
 
-1. **Session start** — call `memory_context` to load high-priority memories for the current project/branch
-2. **Before planning** — call `memory_query` with keywords relevant to the feature or area being designed. Stored decisions and conventions should inform the plan, not be discovered after the plan is written
-3. **Before implementation** — call `memory_query` again with keywords relevant to the code being touched, before writing code, dispatching agents, or transitioning from a plan to execution
-4. **After implementation** — call `memory_store` when the work produced knowledge a future session would need
+Both hooks are safe globally — they check for a `thinker` entry in the project's `.mcp.json` and silently exit in projects without Thinker.
 
-The `memory_context` response includes a reminder about both the planning and implementation query steps, reinforcing the habit at the point where it matters most.
+A project rule file (`docs/thinker-project-rule.md`) provides ongoing guidance for when to query, store, and update memories. Copy it into each project's `.claude/rules/` directory.
 
 ### MCP tools
 
@@ -59,6 +57,14 @@ Add to your project's `.mcp.json`:
 ```
 
 Restart your Claude Code session. The `memory_*` tools will be available immediately.
+
+### Install hooks
+
+```bash
+node /absolute/path/to/thinker/hooks/setup.cjs
+```
+
+This installs both hooks into `~/.claude/settings.json` and copies the hook scripts to `~/.claude/hooks/`. Safe to run multiple times — it updates existing entries rather than duplicating them. Restart Claude Code after running.
 
 ## How memories work
 

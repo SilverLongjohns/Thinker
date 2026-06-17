@@ -2,26 +2,11 @@
 
 Thinker is a local MCP memory server. It gives you persistent, queryable memory across sessions for this project. Memories survive context compaction and session restarts.
 
-### Setup
-
-If the `memory_context` tool is not available, Thinker is not registered yet. Register it by ensuring `.mcp.json` in the project root contains:
-
-```json
-{
-  "mcpServers": {
-    "thinker": {
-      "command": "node",
-      "args": ["/absolute/path/to/thinker/dist/index.js"]
-    }
-  }
-}
-```
-
-If `.mcp.json` already exists with other servers, merge the `thinker` key into the existing `mcpServers` object. After creating or updating the file, tell the user to restart the session so Claude Code picks up the new MCP server.
-
 ### Session Start
 
-Call `memory_context` at the beginning of every session. This returns high-priority memories scoped to the current project and branch — conventions, decisions, and context from previous sessions. Use these to orient yourself before doing any work.
+A global hook enforces calling `memory_context` at the start of every session — it injects a reminder on the first prompt and blocks file writes until it's been called. You don't need to remember to do this; the hook handles it.
+
+`memory_context` returns high-priority memories scoped to the current project and branch — conventions, decisions, and context from previous sessions. Use these to orient yourself before doing any work.
 
 ### When to Store Memories
 
