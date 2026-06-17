@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thinker Memory Dashboard</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface-alt: #0f3460;
+      --text: #e0e0e0;
+      --text-muted: #8c8c8c;
+      --accent: #e94560;
+      --border: #2a2a4a;
+      --card-bg: #1e2746;
+      --type-decision: #4fc3f7;
+      --type-convention: #81c784;
+      --type-context: #ffb74d;
+      --type-rule: #e57373;
+      --type-note: #ba68c8;
+      --p1: #e94560;
+      --p2: #ffb74d;
+      --p3: #8c8c8c;
+      --gap: 16px;
+      --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--gap); background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 { font-size: 1.25rem; font-weight: 600; }
+    .search-input {
+      padding: 8px 12px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); width: 300px; font-size: 0.875rem;
+    }
+    .search-input:focus { outline: none; border-color: var(--accent); }
+    .layout { display: flex; min-height: calc(100vh - 57px); }
+    .sidebar {
+      width: 240px; padding: var(--gap); background: var(--surface);
+      border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0;
+    }
+    .sidebar h2 {
+      font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted);
+      margin: var(--gap) 0 8px; letter-spacing: 0.05em;
+    }
+    .sidebar h2:first-child { margin-top: 0; }
+    .stat-total { font-size: 2rem; font-weight: 700; margin-bottom: var(--gap); }
+    .stat-item {
+      display: flex; justify-content: space-between; padding: 4px 8px;
+      border-radius: 4px; cursor: pointer; font-size: 0.875rem;
+    }
+    .stat-item:hover { background: var(--surface-alt); }
+    .stat-item.active { background: var(--surface-alt); color: var(--accent); }
+    .stat-count { color: var(--text-muted); }
+    .stat-item.active .stat-count { color: var(--accent); }
+    .main { flex: 1; padding: var(--gap); overflow-y: auto; min-width: 0; }
+    .filter-bar {
+      display: flex; gap: 8px; margin-bottom: var(--gap);
+      flex-wrap: wrap; align-items: center;
+    }
+    .filter-bar select {
+      padding: 6px 10px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 0.8rem; cursor: pointer;
+    }
+    .filter-bar select:focus { outline: none; border-color: var(--accent); }
+    .clear-btn {
+      padding: 6px 10px; background: transparent; border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text-muted); font-size: 0.8rem; cursor: pointer;
+    }
+    .clear-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .active-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .filter-chip {
+      padding: 3px 8px; background: var(--surface-alt); border-radius: 12px;
+      font-size: 0.75rem; display: flex; align-items: center; gap: 4px; color: var(--text);
+    }
+    .filter-chip .remove { cursor: pointer; opacity: 0.6; line-height: 1; }
+    .filter-chip .remove:hover { opacity: 1; }
+    .cards { display: flex; flex-direction: column; gap: var(--gap); }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: var(--gap);
+    }
+    .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .type-badge {
+      padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;
+      font-weight: 600; text-transform: uppercase;
+    }
+    .type-decision { background: var(--type-decision); color: #000; }
+    .type-convention { background: var(--type-convention); color: #000; }
+    .type-context { background: var(--type-context); color: #000; }
+    .type-rule { background: var(--type-rule); color: #000; }
+    .type-note { background: var(--type-note); color: #000; }
+    .priority-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+    .priority-1 { background: var(--p1); color: #fff; }
+    .priority-2 { background: var(--p2); color: #000; }
+    .priority-3 { background: var(--p3); color: #000; }
+    .card-time { margin-left: auto; color: var(--text-muted); font-size: 0.8rem; cursor: default; }
+    .card-content { font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 8px; word-break: break-word; }
+    .card-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .tag-chip {
+      padding: 2px 8px; background: var(--surface-alt); border-radius: 12px;
+      font-size: 0.75rem; cursor: pointer; color: var(--text);
+    }
+    .tag-chip:hover { background: var(--accent); color: #fff; }
+    .card-meta { color: var(--text-muted); font-size: 0.75rem; margin-left: auto; }
+    .load-more {
+      display: block; width: 100%; padding: 12px; margin-top: var(--gap);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); cursor: pointer; font-size: 0.875rem;
+    }
+    .load-more:hover { border-color: var(--accent); }
+    .load-more:disabled { opacity: 0.5; cursor: default; }
+    .empty { text-align: center; color: var(--text-muted); padding: 48px; }
+    .loading { text-align: center; color: var(--text-muted); padding: 24px; }
+    @media (max-width: 768px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      .search-input { width: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10';
+    import { useState, useEffect, useCallback, useRef } from 'https://esm.sh/preact@10/hooks';
+    import htm from 'https://esm.sh/htm@3';
+
+    const html = htm.bind(h);
+
+    const LIMIT = 50;
+
+    function timeAgo(iso) {
+      const now = Date.now();
+      const then = new Date(iso).getTime();
+      const diff = Math.floor((now - then) / 1000);
+      if (diff < 60) return `${diff}s ago`;
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
+      return `${Math.floor(diff / 2592000)}mo ago`;
+    }
+
+    function MemoryCard({ memory, onTagClick }) {
+      const typeClass = `type-badge type-${memory.type}`;
+      const priorityClass = `priority-badge priority-${memory.priority}`;
+      const priorityLabel = `P${memory.priority}`;
+      const relative = timeAgo(memory.updated_at || memory.created_at);
+      const isoDate = memory.updated_at || memory.created_at;
+
+      return html`
+        <div class="card">
+          <div class="card-header">
+            <span class=${typeClass}>${memory.type}</span>
+            <span class=${priorityClass}>${priorityLabel}</span>
+            <span class="card-time" title=${isoDate}>${relative}</span>
+          </div>
+          <div class="card-content">${memory.content}</div>
+          <div class="card-footer">
+            ${(memory.tags || []).map(tag => html`
+              <span
+                class="tag-chip"
+                key=${tag}
+                onClick=${() => onTagClick(tag)}
+              >${tag}</span>
+            `)}
+            <span class="card-meta">
+              ${memory.scope}${memory.feature ? ` / ${memory.feature}` : ''}
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    function Sidebar({ stats, filters, onFilter }) {
+      if (!stats) return html`<div class="sidebar"><div class="loading">Loading…</div></div>`;
+
+      const types = ['decision', 'convention', 'context', 'rule', 'note'];
+
+      return html`
+        <div class="sidebar">
+          <h2>Total</h2>
+          <div class="stat-total">${stats.total}</div>
+
+          <h2>By Type</h2>
+          ${types.map(type => {
+            const count = stats.by_type[type] ?? 0;
+            const active = filters.type === type;
+            return html`
+              <div
+                class=${'stat-item' + (active ? ' active' : '')}
+                key=${type}
+                onClick=${() => onFilter('type', active ? '' : type)}
+              >
+                <span>${type}</span>
+                <span class="stat-count">${count}</span>
+              </div>
+            `;
+          })}
+
+          <h2>By Project</h2>
+          ${Object.entries(stats.by_scope).sort((a, b) => b[1] - a[1]).map(([scope, count]) => {
+            const active = filters.scope === scope;
+            const name = (stats.projects && stats.projects[scope]) || scope;
+            return html`
+              <div
+                class=${'stat-item' + (active ? ' active' : '')}
+                key=${scope}
+                onClick=${() => onFilter('scope', active ? '' : scope)}
+              >
+                <span>${name}</span>
+                <span class="stat-count">${count}</span>
+              </div>
+            `;
+          })}
+
+          <h2>By Branch</h2>
+          ${Object.entries(stats.by_feature || {}).sort((a, b) => b[1] - a[1]).map(([feature, count]) => {
+            const active = filters.feature === feature;
+            return html`
+              <div
+                class=${'stat-item' + (active ? ' active' : '')}
+                key=${feature}
+                onClick=${() => onFilter('feature', active ? '' : feature)}
+              >
+                <span>${feature}</span>
+                <span class="stat-count">${count}</span>
+              </div>
+            `;
+          })}
+
+          <h2>Top Tags</h2>
+          ${(stats.top_tags || []).map(({ tag, count }) => {
+            const active = filters.tag === tag;
+            return html`
+              <div
+                class=${'stat-item' + (active ? ' active' : '')}
+                key=${tag}
+                onClick=${() => onFilter('tag', active ? '' : tag)}
+              >
+                <span>${tag}</span>
+                <span class="stat-count">${count}</span>
+              </div>
+            `;
+          })}
+        </div>
+      `;
+    }
+
+    function FilterBar({ filters, onFilter, onClear, projects }) {
+      const activeFilters = Object.entries(filters)
+        .filter(([key, val]) => key !== 'sort' && key !== 'q' && val);
+
+      const hasActiveFilters = activeFilters.length > 0 || filters.q;
+
+      const sortLabels = {
+        created_at_desc: 'Newest first',
+        created_at_asc: 'Oldest first',
+        priority_asc: 'Priority (high first)',
+      };
+
+      return html`
+        <div class="filter-bar">
+          <select
+            value=${filters.sort || 'created_at_desc'}
+            onChange=${e => onFilter('sort', e.target.value)}
+          >
+            <option value="created_at_desc">Newest first</option>
+            <option value="created_at_asc">Oldest first</option>
+            <option value="priority_asc">Priority (high first)</option>
+          </select>
+
+          <div class="active-filters">
+            ${filters.q ? html`
+              <span class="filter-chip">
+                search: ${filters.q}
+                <span class="remove" onClick=${() => onFilter('q', '')}>×</span>
+              </span>
+            ` : null}
+            ${activeFilters.map(([key, val]) => {
+              const label = key === 'scope' ? (projects[val] || val) : val;
+              const keyLabel = key === 'scope' ? 'project' : key === 'feature' ? 'branch' : key;
+              return html`
+                <span class="filter-chip" key=${key}>
+                  ${keyLabel}: ${label}
+                  <span class="remove" onClick=${() => onFilter(key, '')}>×</span>
+                </span>
+              `;
+            })}
+          </div>
+
+          ${hasActiveFilters ? html`
+            <button class="clear-btn" onClick=${onClear}>Clear all</button>
+          ` : null}
+        </div>
+      `;
+    }
+
+    function App() {
+      const [memories, setMemories] = useState([]);
+      const [stats, setStats] = useState(null);
+      const [total, setTotal] = useState(0);
+      const [offset, setOffset] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [filters, setFilters] = useState({
+        q: '',
+        type: '',
+        tag: '',
+        scope: '',
+        feature: '',
+        priority: '',
+        sort: 'created_at_desc',
+      });
+
+      const debounceRef = useRef(null);
+      const searchInputRef = useRef(null);
+
+      async function fetchMemories(currentFilters, currentOffset, append) {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams();
+          if (currentFilters.q) params.set('q', currentFilters.q);
+          if (currentFilters.type) params.set('type', currentFilters.type);
+          if (currentFilters.tag) params.set('tag', currentFilters.tag);
+          if (currentFilters.scope) params.set('scope', currentFilters.scope);
+          if (currentFilters.feature) params.set('feature', currentFilters.feature);
+          if (currentFilters.priority) params.set('priority', currentFilters.priority);
+          if (currentFilters.sort) params.set('sort', currentFilters.sort);
+          params.set('limit', String(LIMIT));
+          params.set('offset', String(currentOffset));
+
+          const res = await fetch(`/api/memories?${params}`);
+          const data = await res.json();
+          setTotal(data.total);
+          setOffset(currentOffset);
+          if (append) {
+            setMemories(prev => [...prev, ...data.memories]);
+          } else {
+            setMemories(data.memories);
+          }
+        } catch (err) {
+          console.error('Failed to fetch memories', err);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function fetchStats() {
+        try {
+          const res = await fetch('/api/stats');
+          const data = await res.json();
+          setStats(data);
+        } catch (err) {
+          console.error('Failed to fetch stats', err);
+        }
+      }
+
+      useEffect(() => {
+        fetchStats();
+      }, []);
+
+      useEffect(() => {
+        fetchMemories(filters, 0, false);
+        fetchStats();
+      }, [filters]);
+
+      function handleFilter(key, value) {
+        if (key === 'q') {
+          // q is handled via debounce from search input, not here
+          setFilters(prev => ({ ...prev, q: value }));
+          return;
+        }
+        setFilters(prev => ({ ...prev, [key]: value }));
+      }
+
+      function handleClear() {
+        if (searchInputRef.current) searchInputRef.current.value = '';
+        setFilters({ q: '', type: '', tag: '', scope: '', feature: '', priority: '', sort: 'created_at_desc' });
+      }
+
+      function handleSearch(e) {
+        const val = e.target.value;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+          setFilters(prev => ({ ...prev, q: val }));
+        }, 300);
+      }
+
+      function handleLoadMore() {
+        const nextOffset = offset + LIMIT;
+        fetchMemories(filters, nextOffset, true);
+      }
+
+      function handleTagClick(tag) {
+        setFilters(prev => {
+          const newTag = prev.tag === tag ? '' : tag;
+          return { ...prev, tag: newTag };
+        });
+      }
+
+      const hasMore = memories.length < total;
+
+      return html`
+        <div>
+          <header class="header">
+            <h1>Thinker Memory Dashboard</h1>
+            <input
+              ref=${searchInputRef}
+              class="search-input"
+              type="search"
+              placeholder="Search memories…"
+              onInput=${handleSearch}
+            />
+          </header>
+          <div class="layout">
+            <${Sidebar} stats=${stats} filters=${filters} onFilter=${handleFilter} />
+            <main class="main">
+              <${FilterBar} filters=${filters} onFilter=${handleFilter} onClear=${handleClear} projects=${stats && stats.projects || {}} />
+              <div class="cards">
+                ${memories.map(m => html`
+                  <${MemoryCard}
+                    key=${m.id}
+                    memory=${m}
+                    onTagClick=${handleTagClick}
+                  />
+                `)}
+              </div>
+              ${loading ? html`<div class="loading">Loading…</div>` : null}
+              ${!loading && memories.length === 0 ? html`<div class="empty">No memories found.</div>` : null}
+              ${!loading && hasMore ? html`
+                <button class="load-more" onClick=${handleLoadMore}>
+                  Load more (${memories.length} / ${total})
+                </button>
+              ` : null}
+            </main>
+          </div>
+        </div>
+      `;
+    }
+
+    render(html`<${App} />`, document.getElementById('app'));
+  </script>
+</body>
+</html>
