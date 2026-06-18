@@ -28,8 +28,8 @@ A project rule file (`docs/thinker-project-rule.md`) provides ongoing guidance f
 | Tool | Description |
 |------|-------------|
 | `memory_store` | Save a new memory (with type, tags, priority) |
-| `memory_query` | Search memories by relevance (full-text search) |
-| `memory_context` | Load relevant memories for current project/branch |
+| `memory_query` | Search memories by relevance (hybrid FTS + semantic) |
+| `memory_context` | Load relevant memories for current project/branch. Optional `query` param ranks P2/P3 memories semantically |
 | `memory_update` | Update an existing memory |
 | `memory_delete` | Delete a memory |
 | `memory_export` | Export all memories (optionally filtered by scope) |
@@ -92,6 +92,16 @@ Memories are automatically scoped to the current project (detected from `package
 - **2** — Normal (default). Surfaces in queries and context when relevant.
 - **3** — Low. Only surfaces in direct search.
 
+### Semantic search
+
+Every memory is embedded at write time using all-MiniLM-L6-v2 (384 dimensions, runs locally — no API calls). The model downloads once and caches under `~/.thinker/models/`.
+
+`memory_query` uses **hybrid retrieval**: full-text search (FTS5) and semantic vector search run in parallel, then results are merged via Reciprocal Rank Fusion (RRF). This means exact keyword matches and semantically similar content both surface — each arm catches what the other misses.
+
+`memory_context` accepts an optional `query` parameter. When provided, P1 memories still load unconditionally, but P2/P3 memories are ranked by semantic similarity to the query rather than by recency alone.
+
+Vectors are stored as raw Float32 BLOBs alongside each memory row (1,536 bytes each). Existing memories without embeddings are backfilled on startup.
+
 ### Token budgeting
 
 Both `memory_context` and `memory_query` are token-budgeted. Results are returned in priority order until the budget is reached, then truncated. Defaults:
@@ -130,6 +140,7 @@ npm run test:watch   # vitest (watch mode)
 - Node.js / TypeScript (ESM)
 - [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) — MCP server protocol
 - [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) — SQLite with WAL mode
+- [`@xenova/transformers`](https://github.com/xenova/transformers.js) — local embeddings (all-MiniLM-L6-v2, 384-dim)
 - [Preact](https://preactjs.com/) + [HTM](https://github.com/developit/htm) — web dashboard (CDN, no build step)
 - [vitest](https://vitest.dev/) — testing
 

@@ -45,6 +45,7 @@ Never create a second copy of anything. This is non-negotiable.
 | Search and token budgeting | `src/search.ts` |
 | MCP tool zod schemas and registration | `src/tools.ts` |
 | Tool handler implementations | `src/handlers.ts` |
+| Embedding model, vector helpers, hybrid ranking | `src/embeddings.ts` |
 | Project/feature detection | `src/project.ts` |
 | Configuration loading | `src/config.ts` |
 | Shared test utilities | `tests/helpers.ts` |
@@ -68,6 +69,7 @@ Every tool handler must surface failures clearly in the MCP response — not jus
 - Node.js / TypeScript (ESM)
 - `@modelcontextprotocol/sdk` — MCP server protocol
 - `better-sqlite3` — SQLite with WAL mode
+- `@xenova/transformers` — local embeddings (all-MiniLM-L6-v2)
 - `vitest` — testing
 - stdio transport (child process of Claude Code)
 
