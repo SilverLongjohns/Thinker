@@ -40,8 +40,9 @@ export function registerTools(
 
   server.tool(
     "memory_context",
-    "Session bootstrap — returns high-priority memories for current project",
+    "Session bootstrap — returns high-priority memories for current project. Optional query ranks P2/P3 memories by relevance to the current task.",
     {
+      query: z.string().optional().describe("Current task description — used to semantically rank lower-priority memories"),
       token_budget: z.number().optional(),
     },
     async (args) => handlers.memory_context(args)

@@ -64,6 +64,7 @@ export interface CreateMemoryInput {
   priority: Priority;
   tags: string[];
   related_to: string[];
+  embedding?: Buffer | null;
 }
 
 export interface UpdateMemoryInput {
@@ -72,4 +73,5 @@ export interface UpdateMemoryInput {
   tags?: string[];
   priority?: Priority;
   related_to?: string[];
+  embedding?: Buffer | null;
 }

@@ -115,6 +115,97 @@ describe("Tool Handlers", () => {
     });
   });
 
+  describe("embedding integration", () => {
+    it("stores embedding when embedFn is provided", async () => {
+      const fakeEmbed = async (_text: string) => {
+        const vec = new Float32Array(384);
+        for (let i = 0; i < 384; i++) vec[i] = 0.5;
+        return vec;
+      };
+
+      const embeddingHandlers = createToolHandlers(dbPath, process.cwd(), fakeEmbed);
+      const result = await embeddingHandlers.memory_store({
+        content: "test with embedding",
+        type: "note",
+      });
+
+      const parsed = JSON.parse(result.content[0].text);
+      const row = db
+        .prepare("SELECT embedding FROM memories WHERE id = ?")
+        .get(parsed.id) as { embedding: Buffer | null };
+
+      expect(row.embedding).not.toBeNull();
+      expect(row.embedding!.length).toBe(384 * 4);
+    });
+
+    it("updates embedding when content changes", async () => {
+      const fakeEmbed = async (text: string) => {
+        const vec = new Float32Array(384);
+        vec[0] = text.length;
+        return vec;
+      };
+
+      const embeddingHandlers = createToolHandlers(dbPath, process.cwd(), fakeEmbed);
+      const storeResult = await embeddingHandlers.memory_store({
+        content: "original",
+        type: "note",
+      });
+      const id = JSON.parse(storeResult.content[0].text).id;
+
+      await embeddingHandlers.memory_update({
+        id,
+        content: "updated content that is longer",
+      });
+
+      const row = db
+        .prepare("SELECT embedding FROM memories WHERE id = ?")
+        .get(id) as { embedding: Buffer };
+
+      const vec = new Float32Array(
+        row.embedding.buffer,
+        row.embedding.byteOffset,
+        row.embedding.length / 4
+      );
+      expect(vec[0]).toBe("updated content that is longer".length);
+    });
+
+    it("passes queryVec to context when query provided", async () => {
+      let embeddedTexts: string[] = [];
+      const fakeEmbed = async (text: string) => {
+        embeddedTexts.push(text);
+        const vec = new Float32Array(384);
+        vec[0] = 1;
+        return vec;
+      };
+
+      const embeddingHandlers = createToolHandlers(dbPath, process.cwd(), fakeEmbed);
+      await embeddingHandlers.memory_store({
+        content: "test memory",
+        type: "convention",
+        priority: 1,
+      });
+
+      embeddedTexts = [];
+      await embeddingHandlers.memory_context({ query: "find relevant stuff" });
+
+      expect(embeddedTexts).toContain("find relevant stuff");
+    });
+
+    it("does not embed when no embedFn provided", async () => {
+      const result = await handlers.memory_store({
+        content: "no embedding handler",
+        type: "note",
+      });
+
+      const parsed = JSON.parse(result.content[0].text);
+      const row = db
+        .prepare("SELECT embedding FROM memories WHERE id = ?")
+        .get(parsed.id) as { embedding: Buffer | null };
+
+      expect(row.embedding).toBeNull();
+    });
+  });
+
   describe("error handling", () => {
     it("returns isError for invalid content", async () => {
       const result = await handlers.memory_store({

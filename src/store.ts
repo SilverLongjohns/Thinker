@@ -75,8 +75,8 @@ export class MemoryStore {
     const now = new Date().toISOString();
 
     const insertMemory = this.db.prepare(`
-      INSERT INTO memories (id, content, content_hash, type, scope, feature, priority, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO memories (id, content, content_hash, type, scope, feature, priority, embedding, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertTag = this.db.prepare(
@@ -90,7 +90,8 @@ export class MemoryStore {
     const transaction = this.db.transaction(() => {
       insertMemory.run(
         id, input.content, contentHash, input.type,
-        input.scope, input.feature, input.priority, now, now
+        input.scope, input.feature, input.priority,
+        input.embedding ?? null, now, now
       );
 
       for (const tag of input.tags) {
@@ -135,6 +136,11 @@ export class MemoryStore {
     if (input.priority !== undefined) {
       sets.push("priority = ?");
       values.push(input.priority);
+    }
+
+    if (input.embedding !== undefined) {
+      sets.push("embedding = ?");
+      values.push(input.embedding);
     }
 
     values.push(id);
@@ -232,4 +238,25 @@ export class MemoryStore {
       throw new Error("feature must be null when scope is global");
     }
   }
+}
+
+export type EmbedFn = (text: string) => Promise<Float32Array>;
+
+export async function backfillEmbeddings(
+  db: Database.Database,
+  embedFn: EmbedFn
+): Promise<number> {
+  const rows = db
+    .prepare("SELECT id, content FROM memories WHERE embedding IS NULL")
+    .all() as Array<{ id: string; content: string }>;
+
+  const update = db.prepare("UPDATE memories SET embedding = ? WHERE id = ?");
+
+  for (const row of rows) {
+    const vec = await embedFn(row.content);
+    const blob = Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength);
+    update.run(blob, row.id);
+  }
+
+  return rows.length;
 }

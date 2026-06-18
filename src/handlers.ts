@@ -8,6 +8,9 @@ import {
 } from "./project.js";
 import { withDb } from "./db.js";
 import type { MemoryType, Priority } from "./types.js";
+import { vectorToBlob } from "./embeddings.js";
+
+export type EmbedFn = (text: string) => Promise<Float32Array>;
 
 interface ToolResult {
   [key: string]: unknown;
@@ -61,7 +64,8 @@ function ensureProject(dbPath: string, cwd: string, projectId: string): void {
 
 export function createToolHandlers(
   dbPath: string,
-  cwd: string
+  cwd: string,
+  embedFn?: EmbedFn
 ): ToolHandlers {
   let cachedProjectId: string | undefined;
 
@@ -85,6 +89,9 @@ export function createToolHandlers(
   return {
     async memory_store(args) {
       try {
+        const embedding = embedFn
+          ? vectorToBlob(await embedFn(args.content))
+          : null;
         const result = withDb(dbPath, (db) =>
           new MemoryStore(db).create({
             content: args.content,
@@ -94,6 +101,7 @@ export function createToolHandlers(
             priority: (args.priority ?? 2) as Priority,
             tags: args.tags ?? [],
             related_to: args.related_to ?? [],
+            embedding,
           })
         );
         return textResult(result);
@@ -104,6 +112,9 @@ export function createToolHandlers(
 
     async memory_query(args) {
       try {
+        const queryVec = embedFn
+          ? await embedFn(args.query)
+          : undefined;
         const result = withDb(dbPath, (db) =>
           new MemorySearch(db).query({
             query: args.query,
@@ -114,6 +125,7 @@ export function createToolHandlers(
             scope: args.scope,
             limit: args.limit,
             token_budget: args.token_budget,
+            queryVec,
           })
         );
         return textResult(result);
@@ -124,11 +136,15 @@ export function createToolHandlers(
 
     async memory_context(args) {
       try {
+        const queryVec = embedFn && args.query
+          ? await embedFn(args.query)
+          : undefined;
         const result = withDb(dbPath, (db) =>
           new MemorySearch(db).context({
             projectId: getProjectId(),
             feature: getCurrentFeature(),
             token_budget: args.token_budget,
+            queryVec,
           })
         );
         return {
@@ -147,6 +163,9 @@ export function createToolHandlers(
 
     async memory_update(args) {
       try {
+        const embedding = embedFn && args.content
+          ? vectorToBlob(await embedFn(args.content))
+          : undefined;
         const result = withDb(dbPath, (db) =>
           new MemoryStore(db).update(args.id, {
             content: args.content,
@@ -154,6 +173,7 @@ export function createToolHandlers(
             tags: args.tags,
             priority: args.priority as Priority | undefined,
             related_to: args.related_to,
+            embedding,
           })
         );
         return textResult(result);

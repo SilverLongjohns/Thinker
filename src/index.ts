@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig, resolveDbPath } from "./config.js";
 import { createToolHandlers } from "./handlers.js";
 import { registerTools } from "./tools.js";
+import { embed } from "./embeddings.js";
 
 const INSTRUCTIONS = `Thinker gives you persistent, queryable memory across sessions. Memories survive context compaction and session restarts.
 
@@ -52,7 +53,7 @@ async function main(): Promise<void> {
     { instructions: INSTRUCTIONS },
   );
 
-  const handlers = createToolHandlers(dbPath, process.cwd());
+  const handlers = createToolHandlers(dbPath, process.cwd(), embed);
   registerTools(server, handlers);
 
   const transport = new StdioServerTransport();
